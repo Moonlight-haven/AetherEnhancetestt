@@ -391,8 +391,14 @@
 (() => {
   'use strict';
 
-  const PATCH_URL = window.AETHER_API_CONFIG?.PATCH_API_URL || 'http://node.victorylordhimself.seyori.name.ng:2099/api/patch';
-  const PATCH_KEY = window.AETHER_API_CONFIG?.PATCH_API_KEY || 'aether_patch_secret_key_2026';
+  // ═══════════════════════════════════════
+  // CONFIG — Read from config.js
+  // ═══════════════════════════════════════
+  const CONFIG = window.AETHER_API_CONFIG || {};
+  const PATCH_URL = CONFIG.PATCH_API_URL || 'https://backend-gqpm.onrender.com/api/patch';
+  const PATCH_KEY = CONFIG.PATCH_API_KEY || 'aether_patch_secret_key_2026';
+  
+  console.log('[PATCHER] Using API URL:', PATCH_URL);
 
   const $ = id => document.getElementById(id);
   const loadingScreen=$('loading-screen'), processingOverlay=$('processing-overlay'), progressBarFill=$('progress-bar-fill');
@@ -410,7 +416,7 @@
   const brandingCopyBtn=$('branding-copy-btn'), copyIcon=$('copy-icon'), checkIcon=$('check-icon'), copyBtnText=$('copy-btn-text');
   const processingActions=$('processing-actions'), cancelPatchBtn=$('cancel-patch-btn');
   const cooldownSection=$('cooldown-section'), cooldownTimer=$('cooldown-timer');
-  const engineRing=$('processing-engine-ring');
+  const engineRing = document.querySelector('.processing-engine-ring');
 
   const steps = [1,2,3,4].map(i => $(`proc-step-${i}`));
 
@@ -439,7 +445,6 @@
 
   function showToast(msg,duration=3000){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>toastEl.classList.remove('show'),duration)}
 
-  // ── PERSISTENT COOLDOWN (survives page refresh) ──
   function checkPersistentCooldown(){
     const savedEnd = localStorage.getItem('ae-cooldown-end');
     if(savedEnd){
@@ -503,7 +508,6 @@
     updateDownloadButtonState();
   }
 
-  // ── RESET BRANDING + DOWNLOAD ON NEW FILE ──
   function resetBranding(){
     hasCopiedBranding = false;
     brandingCopyBtn.classList.remove('copied');
@@ -519,11 +523,9 @@
     patchedFilename = (originalName || 'Video') + ' - Aether-Patcher.mp4';
     postPatchInstr.hidden = true;
     validationError.hidden = true;
-    // Cooldown timer is intentionally NOT cleared here — it keeps counting when video changes
     updateDownloadButtonState();
   }
 
-  // ── BRANDING COPY ──
   brandingCopyBtn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(brandingTextarea.value);
@@ -566,7 +568,6 @@
     }
   }
 
-  // ── DRAG & DROP ──
   previewZone.addEventListener('dragover', e => { e.preventDefault(); previewZone.style.borderColor = 'var(--tt-red)'; });
   previewZone.addEventListener('dragleave', () => { previewZone.style.borderColor = videoPreviewWrap.classList.contains('active') ? 'var(--border-light)' : 'var(--border)'; });
   previewZone.addEventListener('drop', e => {
@@ -581,7 +582,6 @@
   changeVideoBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
   fileInput.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if(f) loadFile(f); fileInput.value = ''; });
 
-  // ── VIDEO CONTROLS ──
   playPauseBtn.addEventListener('click', e => { e.stopPropagation(); previewVideo.paused ? previewVideo.play() : previewVideo.pause(); });
   previewVideo.addEventListener('play', () => { playIcon.style.display = 'none'; pauseIcon.style.display = ''; });
   previewVideo.addEventListener('pause', () => { playIcon.style.display = ''; pauseIcon.style.display = 'none'; });
@@ -638,14 +638,12 @@
   function hideProcessing(){ processingOverlay.classList.remove('active'); }
   function tick(ms = 60){ return new Promise(r => setTimeout(r, ms)); }
 
-  // ── CANCEL HANDLER ──
   function handleCancel(){
     if(abortController){ abortController.abort(); abortController = null; }
     hideProcessing(); showToast('✕ Process cancelled', 2000);
     updateDownloadButtonState();
   }
 
-  // ── SHOW DOWNLOAD BUTTON IN OVERLAY ──
   function showDownloadInOverlay(){
     processingTitle.textContent = 'Patch Complete!';
     processingSubtitle.textContent = 'Your video is ready';
@@ -674,8 +672,10 @@
     startCooldown(30);
   }
 
-  // ── PATCH BUTTON ──
-mainPatchBtn.addEventListener('click', async () => {
+  // ═══════════════════════════════════════
+  // PATCH BUTTON — Uses Render HTTPS URL
+  // ═══════════════════════════════════════
+  mainPatchBtn.addEventListener('click', async () => {
     if(!selectedFile) return showToast('⚠ Please select a video file first');
     if(!hasCopiedBranding) return showToast('⚠ Please copy the creator credit first');
     if(cooldownActive) return showToast('⚠ Please wait for cooldown', 2000);
@@ -688,15 +688,11 @@ mainPatchBtn.addEventListener('click', async () => {
       const formData = new FormData(); formData.append('video', selectedFile);
       setStep(1); setProgress(35, 'Server processing video...'); await tick(400);
       
-      // Get the API URL from config
-      const apiUrl = window.AETHER_API_CONFIG?.PATCH_API_URL || 'http://node.victorylordhimself.seyori.name.ng:2099/api/patch';
-      const apiKey = window.AETHER_API_CONFIG?.PATCH_API_KEY || 'aether_patch_secret_key_2026';
+      console.log('[PATCHER] Sending to:', PATCH_URL);
       
-      console.log('[PATCHER] Sending to:', apiUrl);
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch(PATCH_URL, {
         method: 'POST',
-        headers: { 'X-API-Key': apiKey },
+        headers: { 'X-API-Key': PATCH_KEY },
         body: formData,
         signal: abortController.signal
       });
@@ -724,9 +720,14 @@ mainPatchBtn.addEventListener('click', async () => {
       if(err.name === 'AbortError') return;
       hideProcessing();
       console.error('[PATCHER] Error:', err.message);
-      validationErrorText.innerHTML = `Unable to connect to server. <a href="https://t.me/ECLIPSIATECHS_BOT" target="_blank" style="color:var(--tt-cyan);text-decoration:underline">Contact Support & Report Problem</a>`;
+      
+      if(err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        validationErrorText.innerHTML = `Unable to connect to server. The server may be sleeping. <a href="https://backend-gqpm.onrender.com" target="_blank" style="color:var(--tt-cyan);text-decoration:underline">Wake up server</a> or <a href="https://t.me/ECLIPSIATECHS_BOT" target="_blank" style="color:var(--tt-cyan);text-decoration:underline">Contact Support</a>`;
+      } else {
+        validationErrorText.textContent = err.message;
+      }
       validationError.hidden = false;
-      showToast('⚠ Unable to connect to server', 4000);
+      showToast('⚠ Patch failed — see error above', 4000);
       updateDownloadButtonState();
     } finally { abortController = null; }
   });
