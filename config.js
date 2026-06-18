@@ -4,9 +4,8 @@ const AETHER_API_CONFIG = {
   REDIRECT_URI: "https://moonlight-haven.github.io/AetherEnhancetest/studio.html",
   SERVER_API_ROOT: "https://aether-backend-engine.onrender.com/api",
   
-  // Render Video Patcher Backend (WORKING! ✅)
+  // Render Video Patcher Backend
   PATCH_API_URL: "https://backend-gqpm.onrender.com/api/patch",
   PATCH_API_KEY: "aether_patch_secret_key_2026"
 };
-
 window.AETHER_API_CONFIG = AETHER_API_CONFIG;
